@@ -30,5 +30,15 @@ function defineReactive(data, key, val) {
 }
 
 function Dep() {
-
+  this.subs = [];//dep实例有一个subs数组
+}
+Dep.prototype = {
+  addSub: function(sub) {//dep实例拥有一个addSub方法用于将sub参数添加进subs数组中
+    this.subs.push(sub);
+  },
+  notify: function() {//notify的作用则是遍历subs数组，将每一个元素进行update()方法
+    this.subs.forEach(function (sub) {
+      sub.update();
+    })
+  }
 }
