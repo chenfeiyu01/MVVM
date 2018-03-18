@@ -1,44 +1,83 @@
-var data = {
-  name: 'kindeng'
-};
-observe(data);
-data.name = 'dmq';
-
-function observe(data) {
-  if (!data || typeof data !== 'object') { //如果没有传入参数或传入参数不是对象就不执行下面的代码
-    return;
-  }
-  Object.keys(data).forEach(function(key) { //对该对象的属性组成的数组进行遍历
-    defineReactive(data, key, data[key]); //data是传入的对象，key是对象的属性，data[key]是对象的属性值
-  })
-};
-
-function defineReactive(data, key, val) {
-  var dep = new Dep()
-  observe(val); //监听子属性，如果子属性是对象则继续进行
-  Object.defineProperty(data, key, {
-    enumerable: true, //可枚举
-    configurable: false, //不能再define
-    get: funcion() {
-      return val  //获取到被读取的属性值
-    },
-    set: function(newVal) {
-      console.log(val + '变成了' + newVal);
-      val = newVal //将以前的属性值改为新的属性值
-    }
-  })
+function Observer(data) {
+    this.data = data;
+    this.walk(data);
 }
+
+Observer.prototype = {
+    walk: function(data) {
+        var me = this;
+        Object.keys(data).forEach(function(key) {
+            me.convert(key, data[key]);
+        });
+    },
+    convert: function(key, val) {
+        this.defineReactive(this.data, key, val);
+    },
+
+    defineReactive: function(data, key, val) {
+        var dep = new Dep();
+        var childObj = observe(val);
+
+        Object.defineProperty(data, key, {
+            enumerable: true, // 可枚举
+            configurable: false, // 不能再define
+            get: function() {
+                if (Dep.target) {
+                    dep.depend();
+                }
+                return val;
+            },
+            set: function(newVal) {
+                if (newVal === val) {
+                    return;
+                }
+                val = newVal;
+                // 新的值是object的话，进行监听
+                childObj = observe(newVal);
+                // 通知订阅者
+                dep.notify();
+            }
+        });
+    }
+};
+
+function observe(value, vm) {
+    if (!value || typeof value !== 'object') {
+        return;
+    }
+
+    return new Observer(value);
+};
+
+
+var uid = 0;
 
 function Dep() {
-  this.subs = [];//dep实例有一个subs数组
+    this.id = uid++;
+    this.subs = [];
 }
+
 Dep.prototype = {
-  addSub: function(sub) {//dep实例拥有一个addSub方法用于将sub参数添加进subs数组中
-    this.subs.push(sub);
-  },
-  notify: function() {//notify的作用则是遍历subs数组，将每一个元素进行update()方法
-    this.subs.forEach(function (sub) {
-      sub.update();
-    })
-  }
-}
+    addSub: function(sub) {
+        this.subs.push(sub);
+    },
+
+    depend: function() {
+        Dep.target.addDep(this);
+    },
+
+    removeSub: function(sub) {
+        var index = this.subs.indexOf(sub);
+        if (index != -1) {
+            this.subs.splice(index, 1);
+        }
+    },
+
+    notify: function() {
+        this.subs.forEach(function(sub) {
+            sub.update();
+        });
+    }
+};
+
+Dep.target = null;
